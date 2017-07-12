@@ -5,13 +5,16 @@ def scb(filename)
     import matplotlib.pyplot as plt
     %matplotlib inline
 
-    heads = ['Time (Sec)','Load (kN)','Disp (mm)',
-             'Core Temp (C)','Surf Temp (C)']
 
+
+    # Sketchy import, skipping lines with non-native encoding
     df = pd.read_csv(filename, header = None, skiprows = 44)
     meta = pd.read_csv(filename, header = None, skiprows = 12, 
                        nrows =3, usecols = [1]) 
-
+    
+    # Rename columns for EZ access
+    heads = ['Time (Sec)','Load (kN)','Disp (mm)',
+         'Core Temp (C)','Surf Temp (C)']
     df.columns = heads
 
     vals = meta.values
