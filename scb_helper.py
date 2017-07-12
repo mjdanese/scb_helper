@@ -37,25 +37,30 @@ def scb(filename)
         upper = np.polyval(coefficients, top)
         return upper-lower
 
+    # Calculate definite integral and add pre- and post- peak areas
     max_load_disp = df.ix[idxmax]['Disp (mm)']
     terminal_disp = post.iloc[-1]['Disp (mm)']
     pre_work = poly3_def_int(polyint_pre, 0, max_load_disp)
     post_work = poly3_def_int(polyint_post, max_load_disp, terminal_disp)
+    
+    # Calculate as many variables as possible so far
     WORK_OF_FRACTURE = pre_work + post_work
-
     AREA_OF_FRACTURE = (thickness * (diameter - notch))
     FRACTURE_ENERGY = WORK_OF_FRACTURE / AREA_OF_FRACTURE
-
     SECANT_STIFFNESS = df['Load (kN)'].max() / max_load_disp
 
+    # Find 1st and second derivative
     der1 = np.polyder(poly_post)
     der2 = np.polyder(der1)
 
+    # Find x,y of inflection point
     infl_x = -der2[1]/der2[0]
     infl_y = np.polyval(poly_post, infl_x)
 
+    # Calculate slope of inflection point tangent
     SLOPE = (der1[0]*(infl_x**2))+(der1[1]*infl_x)+der1[2]
 
+    # Finally, calculate flexibility index and critical displacement
     CRITICAL_DISPLACEMENT = (0.1 - infl_x + SLOPE) / SLOPE
     FLEXIBILITY_INDEX = (FRACTURE_ENERGY / abs(SLOPE)) * 100000
 
