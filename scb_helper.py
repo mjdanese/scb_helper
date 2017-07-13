@@ -1,17 +1,14 @@
 def scb(filename)
     import pandas as pd
     import numpy as np
-    import csv
-    import matplotlib.pyplot as plt
-    %matplotlib inline
 
-
+    filename = 'results/CE-SCB-2_25-4.csv'
 
     # Sketchy import, skipping lines with non-native encoding
     df = pd.read_csv(filename, header = None, skiprows = 44)
     meta = pd.read_csv(filename, header = None, skiprows = 12, 
                        nrows =3, usecols = [1]) 
-    
+
     # Rename columns for EZ access
     heads = ['Time (Sec)','Load (kN)','Disp (mm)',
          'Core Temp (C)','Surf Temp (C)']
@@ -28,8 +25,8 @@ def scb(filename)
     end = post_all.loc[post_all['Load (kN)'] < 0.1].index[0]
     post = post_all.ix[:end]
 
-    poly_pre = np.polyfit(pre['Disp (mm)'], pre['Load (kN)'], deg = 3)
-    poly_post = np.polyfit(post['Disp (mm)'], post['Load (kN)'], deg = 3)
+    poly_pre = np.polyfit(pre['Disp (mm)'], pre['Load (kN)'], deg = 4)
+    poly_post = np.polyfit(post['Disp (mm)'], post['Load (kN)'], deg = 5)
 
     # Integrate to get area under curve
     polyint_pre = np.polyint(poly_pre)
@@ -45,7 +42,7 @@ def scb(filename)
     terminal_disp = post.iloc[-1]['Disp (mm)']
     pre_work = poly3_def_int(polyint_pre, 0, max_load_disp)
     post_work = poly3_def_int(polyint_post, max_load_disp, terminal_disp)
-    
+
     # Calculate as many variables as possible so far
     WORK_OF_FRACTURE = pre_work + post_work
     AREA_OF_FRACTURE = (thickness * (diameter - notch))
@@ -56,18 +53,24 @@ def scb(filename)
     der1 = np.polyder(poly_post)
     der2 = np.polyder(der1)
 
-    # Find x,y of inflection point
-    infl_x = -der2[1]/der2[0]
-    infl_y = np.polyval(poly_post, infl_x)
+    # Find x,y of inflection x,y
+    px = np.poly1d(der2)
+
+    inflx = (px).roots
+    infly = np.polyval(poly_post, inflx)
 
     # Calculate slope of inflection point tangent
-    SLOPE = (der1[0]*(infl_x**2))+(der1[1]*infl_x)+der1[2]
+    SLOPE = np.polyval(der1, inflx[2])
+    y_intercept = infly[2] - (SLOPE * inflx[2])
+
+    # Define inflection point equation
+    infl_eqn = np.poly1d([SLOPE, y_intercept])
 
     # Finally, calculate flexibility index and critical displacement
-    CRITICAL_DISPLACEMENT = (0.1 - infl_x + SLOPE) / SLOPE
+    CRITICAL_DISPLACEMENT = np.polyval(infl_eqn, 0.1)
     FLEXIBILITY_INDEX = (FRACTURE_ENERGY / abs(SLOPE)) * 100000
 
     result = [filename, WORK_OF_FRACTURE, AREA_OF_FRACTURE, FRACTURE_ENERGY, SECANT_STIFFNESS,
-              infl_x, infl_y, SLOPE, CRITICAL_DISPLACEMENT, FLEXIBILITY_INDEX]
+              inflx[0], infly[0], SLOPE, CRITICAL_DISPLACEMENT, FLEXIBILITY_INDEX]
     
     return result
